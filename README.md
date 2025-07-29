@@ -56,3 +56,11 @@ You MUST set up your deliverables using [mermaid](https://mermaid.js.org/intro/)
 This test does not require a technical implementation at the code level. The solution should only be presented with the requested deliverables.
 
 We'll discuss the solution design further during the interview. We can also work together during the interview to improve the proposed solution.
+
+## Final concerns
+
+When delivering the solution, please keep in mind the following practices:
+
+* You MUST create a new branch named `feature/{first-name}-{last-name}-task-list`.
+* You MUST assign a pull request from your new branch to the original project.
+* The solution must be written in English.
