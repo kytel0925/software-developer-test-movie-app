@@ -1,66 +1,228 @@
-## Software Developer Design Test "Cinema Booking System"
+# Software Developer Design Test "Cinema Booking System"
 
-### Description
+## Entity Relationship Diagram
 
-Design a booking system for a major cinema chain in Santander/Spain. The cinema has multiple projection rooms, each with several movie screenings throughout the day. Customers should be able to search for and book seats for a specific movie screening.
+```mermaid
+erDiagram
+    USER {
+        int id PK
+        string name
+        string email
+        string passwordHash
+    }
 
-### Functional Requirements
+    MOVIE {
+        int id PK
+        string title
+        string genre
+        int durationMinutes
+    }
 
-#### Movie and Screening Management:
+    ROOM {
+        int id PK
+        string name
+        int totalSeats
+    }
 
-* The system must allow for adding, updating, and deleting movies.
-* The system must allow for scheduling screenings for movies in different rooms and at different times.
+    SCREENING {
+        int id PK
+        int movieId FK
+        int roomId FK
+        datetime startTime
+    }
 
-#### Search and Bookings:
+    SEAT {
+        int id PK
+        int roomId FK
+        string seatNumber
+    }
 
-* Customers must be able to search for movie screenings by title and date.
-* Customers must be able to view screening details, including available seats.
-* Customers must be able to book specific seats for a movie screening.
-* The system must allow for booking cancellations.
+    BOOKING {
+        int id PK
+        int userId FK
+        int screeningId FK
+        datetime bookingTime
+        string status
+    }
 
-#### Authentication and User Management:
+    BOOKED_SEAT {
+        int id PK
+        int bookingId FK
+        int seatId FK
+        int screeningId FK
+    }
 
-* Users must be able to register and log in.
-* Users must be able to view and manage their bookings.
+    USER ||--o{ BOOKING : makes
+    MOVIE ||--o{ SCREENING : "is shown in"
+    ROOM ||--o{ SCREENING : hosts
+    SCREENING ||--o{ BOOKING : allows
+    SCREENING ||--o{ BOOKED_SEAT : reserves
+    ROOM ||--o{ SEAT : contains
+    SEAT ||--o{ BOOKED_SEAT : "is reserved"
+    BOOKING ||--o{ BOOKED_SEAT : includes
+```
 
-### Additional Context for Potential Traffic
+## Class diagram
 
-Based on studies and data from the cinema industry, on average, a cinema can receive between 300 and 2,000 people per day on a Friday. Here's a more specific breakdown:
+```mermaid
+classDiagram
+    class User {
+        int id
+        string name
+        string email
+        string passwordHash
+        register()
+        login()
+        viewBookings()
+    }
 
-#### Cinema in a Large City/Metropolitan Area (Santander/Spain)
+    class Movie {
+        int id
+        string title
+        string genre
+        int durationMinutes
+        create()
+        update()
+        delete()
+        getDetails()
+    }
 
-* **Average Daily Attendance:** 2,000 - 5,000 people or more, especially with major releases.
+    class Room {
+        int id
+        string name
+        int totalSeats
+        addSeat(seatNumber)
+        getSeatMap()
+    }
 
-It's expected that 80% of these cinema-goers will purchase tickets online.
+    class Seat {
+        int id
+        string seatNumber
+        isAvailable(screening)
+    }
 
-#### Calculation Example
+    class Screening {
+        int id
+        int movieId
+        int roomId
+        datetime startTime
+        listAvailableSeats()
+        getDetails()
+        search(title, date)
+    }
 
-For a cinema with 10 screens in a medium-sized city, where each screen has 150 seats and 5 screenings per screen on a Friday:
+    class Booking {
+        int id
+        int userId
+        int screeningId
+        datetime bookingTime
+        string status
+        createBooking(seatIds)
+        cancelBooking()
+    }
 
-* **Total Screenings:** 10 screens * 5 screenings = 50 screenings
-* **Total Capacity:** 50 screenings * 150 seats = 7,500 seats
-* If the cinema has an average occupancy rate of 60%:
-    * **Estimated Attendance:** 7,500 seats * 60% = 4,500 people
+    class BookedSeat {
+        int id
+        int bookingId
+        int seatId
+        int screeningId
+    }
 
-### Deliverables
+User      "1"  o-- "0..*" Booking      : makes
+Screening "1"  *-- "0..*" Booking      : allows
+Booking   "1"  *-- "1..*" BookedSeat   : includes
+Screening "1"  *-- "0..*" BookedSeat   : allocates
+Movie     "1"  *-- "0..*" Screening    : is shown in
+Room      "1"  o-- "0..*" Screening    : hosts
+Room      "1"  *-- "1..*" Seat         : contains
+Seat      "1"  --> "0..*" BookedSeat   : is reserved in
+Screening "1"  --> "0..*" Seat         : uses
+```
 
-* **Entity Relationship Diagram:** Of all related table to this solution.
-* **Classes Design:** Classes with method descriptions.
-* **Sequences Diagram:** For two use cases "reservation of a movie screening" and "cancel of a reservation"
-* **State Diagram:** For all the main objects in the previous use cases
+## Sequence diagrams
+### Reservation of movie screening
+```mermaid
+sequenceDiagram
+    actor User
+    participant WebApp as Web UI
+    participant ScreeningService as ScreeningService
+    participant SeatService as SeatService
+    participant BookingService as BookingService
 
-You MUST set up your deliverables using [mermaid](https://mermaid.js.org/intro/) in this README file.
+    User ->> WebApp: login(email, password)
+    WebApp -->> User: loginSuccess | loginFailure
 
-**Please Note:**
+    User ->> WebApp: searchScreenings(title, date)
+    WebApp ->> ScreeningService: findScreenings(title, date)
+    ScreeningService -->> WebApp: screenings
 
-This test does not require a technical implementation at the code level. The solution should only be presented with the requested deliverables.
+    User ->> WebApp: chooseScreening(screeningId)
+    WebApp ->> ScreeningService: getScreening(screeningId)
+    ScreeningService ->> SeatService: getAvailableSeats(screeningId)
+    SeatService -->> ScreeningService: seats
+    ScreeningService -->> WebApp: seats
 
-We'll discuss the solution design further during the interview. We can also work together during the interview to improve the proposed solution.
+    User ->> WebApp: selectSeats(seatIds)
+    WebApp -->> User: showSelectionSummary
+    User ->> WebApp: confirmBooking
+    WebApp ->> BookingService: createBooking(userId, screeningId, seatIds)
+    BookingService ->> SeatService: validateSeats(screeningId, seatIds)
 
-## Final concerns
+    alt seats available
+        SeatService -->> BookingService: seatsAvailable
+        BookingService ->> SeatService: lockSeats(screeningId, seatIds)
+        BookingService -->> WebApp: bookingSuccess(bookingId)
+        WebApp -->> User: displayConfirmation(bookingId)
+    else seats unavailable
+        SeatService -->> BookingService: seatsUnavailable
+        BookingService -->> WebApp: bookingError
+        WebApp -->> User: displayError
+    end
+```
+### Cancelation of a reservation
+```mermaid
+sequenceDiagram
+    actor User
+    participant WebApp as "Web UI"
+    participant BookingService
+    participant SeatService
 
-When delivering the solution, please keep in mind the following practices:
+    User ->> WebApp: login(email, password)
+    WebApp -->> User: loginSuccess | loginFailure
 
-* You MUST create a new branch named `feature/{first-name}-{last-name}-task-list`.
-* You MUST assign a pull request from your new branch to the original project.
-* The solution must be written in English.
+    User ->> WebApp: viewBookings
+    WebApp ->> BookingService: getBookings(userId)
+    BookingService -->> WebApp: bookings
+    User ->> WebApp: cancelBooking(bookingId)
+
+    WebApp ->> BookingService: cancelBooking(bookingId)
+    BookingService ->> SeatService: releaseSeats(bookingId)
+    SeatService -->> BookingService: seatsReleased
+    BookingService -->> WebApp: cancellationSuccess
+    WebApp -->> User: displayCancellation()
+```
+
+## State diagrams
+### Booking state diagram
+```mermaid
+stateDiagram
+    [*] --> Created : user creates booking
+    Created --> Confirmed : selected seats
+    Created --> Cancelled : user cancels
+    Created --> Expired : booking timeouts
+    Confirmed --> Cancelled : user cancels
+    Confirmed --> Completed : screening starts
+    Cancelled --> [*]
+    Expired   --> [*]
+    Completed --> [*]
+```
+### Seat state diagram
+```mermaid
+stateDiagram
+    [*] --> Available
+    Available --> Locked : seats selected
+    Locked --> Available : booking cancelled
+    Locked --> Reserved : booking confirmed
+    Locked --> Available : booking timeout
+    Reserved --> [*]
+```
